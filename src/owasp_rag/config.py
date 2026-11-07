@@ -12,10 +12,10 @@ class Settings(BaseSettings):
     # Sent as reasoning_effort; "none" turns thinking off on Ollama. Empty omits the parameter.
     llm_reasoning_effort: str = "none"
     # A different model family from llm_model, to limit self-preference bias.
-    judge_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    judge_base_url: str = "https://ollama.com/v1"
     judge_api_key: str = ""
-    judge_model: str = "gemini-3.6-flash"
-    judge_rpm: float = 8  # stay under the free tier's per-minute cap
+    judge_model: str = "gpt-oss:120b"
+    judge_rpm: float = 20  # pacing for hosted free tiers
 
     embed_base_url: str = "http://localhost:11434/v1"
     embed_api_key: str = ""
