@@ -23,6 +23,7 @@ def replies(monkeypatch):
         monkeypatch.setattr(
             judge_mod, "judge_client", lambda: NS(chat=NS(completions=NS(create=create)))
         )
+        monkeypatch.setattr(judge_mod.settings, "judge_rpm", 1e9)
         return sent
 
     return install

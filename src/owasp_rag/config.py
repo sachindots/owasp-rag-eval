@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     judge_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     judge_api_key: str = ""
     judge_model: str = "gemini-3.6-flash"
+    judge_rpm: float = 8  # stay under the free tier's per-minute cap
 
     embed_base_url: str = "http://localhost:11434/v1"
     embed_api_key: str = ""

@@ -1,6 +1,8 @@
+import time
 from functools import cache
 from pathlib import Path
 
+from openai import RateLimitError
 from pydantic import ValidationError
 
 from ..config import settings
@@ -36,6 +38,24 @@ SCHEMA = {
 }
 
 
+_last_call = 0.0
+
+
+def _create(**kwargs):
+    """Call the judge, spaced to settings.judge_rpm and waiting out 429s, so a free-tier
+    quota slows a run down instead of killing it."""
+    global _last_call
+    for wait in (60, 120, 240, None):
+        time.sleep(max(0.0, _last_call + 60 / settings.judge_rpm - time.monotonic()))
+        _last_call = time.monotonic()
+        try:
+            return judge_client().chat.completions.create(**kwargs)
+        except RateLimitError:
+            if wait is None:
+                raise
+            time.sleep(wait)
+
+
 @cache
 def rubric() -> str:
     """The correctness rubric section of GUIDELINES.md, word for word."""
@@ -63,7 +83,7 @@ def judge(question: str, reference_answer: str, candidate: str) -> JudgeVerdict:
     ]
     error: ValidationError | None = None
     for _ in range(3):
-        resp = judge_client().chat.completions.create(
+        resp = _create(
             model=settings.judge_model,
             messages=messages,
             temperature=0,

@@ -64,15 +64,20 @@ def ops(answers: Sequence[Answer]) -> dict[str, float]:
     }
 
 
-def write(kind: str, rows: Sequence[BaseModel]) -> Path:
+def results_file(kind: str) -> Path:
     RESULTS.mkdir(exist_ok=True)
-    path = RESULTS / f"{kind}-{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
-    path.write_text("".join(r.model_dump_json() + "\n" for r in rows), encoding="utf-8")
-    return path
+    return RESULTS / f"{kind}-{time.strftime('%Y%m%d-%H%M%S')}.jsonl"
+
+
+def append(path: Path, row: BaseModel) -> None:
+    """One row per line as soon as it exists, so a crash keeps the rows already paid for."""
+    with path.open("a", encoding="utf-8") as out:
+        out.write(row.model_dump_json() + "\n")
 
 
 def run_golden(split: str, limit: int | None, defenses: Defenses) -> dict:
     items = [i for i in load(DATA / "golden.jsonl", GoldenItem) if i.split == split][:limit]
+    path = results_file("golden")
     rows: list[GoldenResult] = []
     with connect() as conn:
         for item in items:
@@ -95,10 +100,11 @@ def run_golden(split: str, limit: int | None, defenses: Defenses) -> dict:
                     correct=correct,
                 )
             )
+            append(path, rows[-1])
     answerable = [r for r in rows if r.answerable]
     ranks = [r.hit_rank for r in answerable]
     return {
-        "results": str(write("golden", rows)),
+        "results": str(path),
         "split": split,
         "model": settings.llm_model,
         "judge_model": settings.judge_model,
@@ -114,6 +120,7 @@ def run_golden(split: str, limit: int | None, defenses: Defenses) -> dict:
 
 def run_attacks(split: str, limit: int | None, defenses: Defenses) -> dict:
     items = [i for i in load(DATA / "attacks.jsonl", AttackItem) if i.split == split][:limit]
+    path = results_file("attacks")
     rows: list[AttackResult] = []
     with connect() as conn:
         for item in items:
@@ -139,11 +146,12 @@ def run_attacks(split: str, limit: int | None, defenses: Defenses) -> dict:
                     succeeded=attack_succeeded(item, ans, settings.canary),
                 )
             )
+            append(path, rows[-1])
     by_category: dict[str, list[bool]] = defaultdict(list)
     for r in rows:
         by_category[r.category].append(r.succeeded)
     return {
-        "results": str(write("attacks", rows)),
+        "results": str(path),
         "split": split,
         "model": settings.llm_model,
         "defenses": defenses.model_dump(),
