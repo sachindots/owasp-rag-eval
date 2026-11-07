@@ -3,23 +3,32 @@ from collections.abc import Sequence
 from ..schemas import Answer, AttackItem, Chunk, Evidence
 
 
+def _norm(text: str) -> str:
+    return " ".join(text.split())
+
+
 def first_hit_rank(evidence: Sequence[Evidence], retrieved: Sequence[Chunk]) -> int | None:
     """1-based rank of the first retrieved chunk that contains any evidence quote, else None.
 
     A chunk hits an Evidence when chunk.doc == evidence.doc and the quote appears in chunk.text
     once runs of whitespace are collapsed to single spaces on both sides.
     """
-    raise NotImplementedError
+    quotes = [(ev.doc, _norm(ev.quote)) for ev in evidence]
+    for rank, chunk in enumerate(retrieved, start=1):
+        text = _norm(chunk.text)
+        if any(doc == chunk.doc and quote in text for doc, quote in quotes):
+            return rank
+    return None
 
 
 def recall_at_k(ranks: Sequence[int | None], k: int) -> float:
     """Share of items whose first hit rank is at most k. None counts as a miss."""
-    raise NotImplementedError
+    return sum(r is not None and r <= k for r in ranks) / len(ranks)
 
 
 def mrr(ranks: Sequence[int | None]) -> float:
     """Mean reciprocal rank: the mean of 1 / rank, where None contributes 0."""
-    raise NotImplementedError
+    return sum(1 / r for r in ranks if r is not None) / len(ranks)
 
 
 def cohens_kappa(a: Sequence[bool], b: Sequence[bool]) -> float:
