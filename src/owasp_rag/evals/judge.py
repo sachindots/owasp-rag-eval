@@ -18,8 +18,10 @@ human annotator. Apply this rubric exactly.
 {rubric}
 
 Judge only whether the candidate's content is correct under the rubric. Ignore citation markers \
-such as [Some_Cheat_Sheet#3], style and length. Write your rationale first, in one or two \
-sentences, then give the verdict."""
+such as [Some_Cheat_Sheet#3], style and length.
+
+Reply with only a JSON object, rationale first, in one or two sentences, then the verdict:
+{{"rationale": "...", "correct": true or false}}"""
 
 USER = """Question:
 {question}
@@ -29,14 +31,6 @@ Reference answer:
 
 Candidate answer:
 {candidate}"""
-
-# Field order puts the rationale before the verdict, so the model reasons before deciding.
-SCHEMA = {
-    "type": "object",
-    "properties": {"rationale": {"type": "string"}, "correct": {"type": "boolean"}},
-    "required": ["rationale", "correct"],
-}
-
 
 _last_call = 0.0
 
@@ -87,10 +81,8 @@ def judge(question: str, reference_answer: str, candidate: str) -> JudgeVerdict:
             model=settings.judge_model,
             messages=messages,
             temperature=0,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {"name": "verdict", "schema": SCHEMA},
-            },
+            # JSON mode, not a strict schema: gpt-oss on Ollama Cloud ignores json_schema.
+            response_format={"type": "json_object"},
         )
         try:
             return JudgeVerdict.model_validate_json(resp.choices[0].message.content or "")
