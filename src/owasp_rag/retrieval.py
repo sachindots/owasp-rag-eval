@@ -25,12 +25,16 @@ def vector_search(conn: psycopg.Connection, query_embedding: list[float], k: int
 def keyword_search(conn: psycopg.Connection, query: str, k: int) -> list[Chunk]:
     """Top k chunks by Postgres full-text rank, best first.
 
-    Use websearch_to_tsquery('english', query) against chunks.tsv and order by ts_rank_cd.
-    This is not BM25. If you want BM25, compute it in memory over all chunks and say so in PLAN.md.
+    The question's lexemes are ORed, then ranked with ts_rank_cd against chunks.tsv. The
+    AND semantics of websearch_to_tsquery matched nothing for 92% of dev questions (PLAN.md,
+    decisions log). A question made only of stopwords has no lexemes and returns no rows.
+    This is not BM25: ts_rank_cd weighs term frequency and proximity, with no IDF.
     """
     rows = conn.execute(
-        f"SELECT {_COLUMNS} FROM chunks, websearch_to_tsquery('english', %(q)s) query"
-        " WHERE tsv @@ query ORDER BY ts_rank_cd(tsv, query) DESC, id LIMIT %(k)s",
+        f"SELECT {_COLUMNS} FROM chunks,"
+        " to_tsquery('english', replace(plainto_tsquery('english', %(q)s)::text, ' & ', ' | '))"
+        " query WHERE numnode(query) > 0 AND tsv @@ query"
+        " ORDER BY ts_rank_cd(tsv, query) DESC, id LIMIT %(k)s",
         {"q": query, "k": k},
     ).fetchall()
     return _chunks(rows)

@@ -47,6 +47,7 @@ Record each choice, the alternative you rejected, and the number that decided it
 | 2026-11-07 | Answer model `qwen3.5:4b`, not `qwen3:8b` | qwen3:8b (5.2 GB) plus bge-m3 (1.2 GB) does not fit in 6 GB of VRAM; qwen3.5:4b at 16K context uses 3.4 GB. |
 | 2026-11-07 | Judge on Gemini, a different model family from the answer model | Same-family judges favour their own outputs. |
 | 2026-11-07 | Golden and attack items carry a `dev`/`test` split | Prompts and thresholds are tuned on `dev`; reported numbers come from `test` only. |
+| 2026-11-07 | Keyword search ORs the question's lexemes instead of using `websearch_to_tsquery` | On dev (n=38), AND semantics returned no rows for 92% of questions and keyword recall@5 was 0.079 (`results/retrieval-20261107-230923.json`). ORed lexemes: 0% empty, recall@5 0.421 (`results/retrieval-20261107-230946.json`). |
 
 ## Results
 
