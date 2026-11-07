@@ -50,7 +50,9 @@ Record each choice, the alternative you rejected, and the number that decided it
 |---|---|---|
 | 2026-11-07 | Pin the corpus to commit `757270a` instead of cloning the latest | The upstream text changes: the Argon2id section was rewritten into a parameter list. A moving corpus breaks evidence quotes without warning. |
 | 2026-11-07 | Chunker uses CommonMark fence rules, any indentation, and keeps oversized single blocks whole | One line of inline code with ``` at both ends (`Authorization_Cheat_Sheet.md`) swallowed 77 headings under a naive fence regex. 19 fences sit indented in lists. 46 of 3,298 chunks exceed 2,000 chars (tables, long lists, code); bge-m3 accepts 8,192 tokens, so splitting them further buys little. |
-| 2026-11-07 | Answer model `qwen3.5:4b`, not `qwen3:8b` | qwen3:8b (5.2 GB) plus bge-m3 (1.2 GB) does not fit in 6 GB of VRAM; qwen3.5:4b at 16K context uses 3.4 GB. |
+| 2026-11-07 | Answer model `qwen3.5:4b`, not `qwen3:8b` | qwen3:8b (5.2 GB) plus bge-m3 (1.2 GB) does not fit in 6 GB of VRAM. |
+| 2026-11-07 | 8K context for the answer model, not 16K | At 16K, Ollama put 16% of the model on the CPU next to bge-m3; at 8K it runs fully on the GPU (3.3 GB). Prompts on dev were 1.4K to 4.5K tokens. |
+| 2026-11-07 | Answer prompt: every sentence cited, refusals start with a fixed sentence | A dev pass with the first prompt showed answers with no citations and refusals in free wording, which the refusal check misses. The revised prompt fixed the citations; some near-miss refusals are still free-worded (see Limitations). |
 | 2026-11-07 | Judge on Gemini, a different model family from the answer model | Same-family judges favour their own outputs. |
 | 2026-11-07 | Golden and attack items carry a `dev`/`test` split | Prompts and thresholds are tuned on `dev`; reported numbers come from `test` only. |
 | 2026-11-07 | Keyword search ORs the question's lexemes instead of using `websearch_to_tsquery` | On dev (n=38), AND semantics returned no rows for 92% of questions and keyword recall@5 was 0.079 (`results/retrieval-20261107-230923.json`). ORed lexemes: 0% empty, recall@5 0.421 (`results/retrieval-20261107-230946.json`). |

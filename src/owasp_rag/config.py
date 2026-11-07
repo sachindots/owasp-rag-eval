@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = ""
-    llm_model: str = "qwen3.5-4b-16k"  # qwen3.5:4b with a 16K context, from ollama/Modelfile
+    llm_model: str = "qwen3.5-4b-8k"  # qwen3.5:4b with an 8K context, from ollama/Modelfile
     # Sent as reasoning_effort; "none" turns thinking off on Ollama. Empty omits the parameter.
     llm_reasoning_effort: str = "none"
     # A different model family from llm_model, to limit self-preference bias.
