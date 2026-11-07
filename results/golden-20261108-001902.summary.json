@@ -1,0 +1,19 @@
+{
+  "results": "results/golden-20261108-001902.jsonl",
+  "split": "test",
+  "model": "qwen3.5-4b-8k",
+  "judge_model": "gpt-oss:120b",
+  "defenses": {
+    "spotlight": false,
+    "classifier": false,
+    "tool_confirmation": false
+  },
+  "n": 107,
+  "recall_at_5": 0.9058823529411765,
+  "mrr": 0.7327450980392156,
+  "answer_accuracy": 0.8470588235294118,
+  "refusal_accuracy": 1.0,
+  "p50_latency_ms": 9969.652514999325,
+  "p95_latency_ms": 16760.12742680323,
+  "cost_per_1k_queries_usd": 0.0
+}

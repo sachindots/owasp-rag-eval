@@ -20,11 +20,11 @@ Every stub raises `NotImplementedError`, and `uv run pytest` reports its spec te
 
 ## Week 2: answers and the judge
 
-- [ ] `answer.answer`, including the tool-call loop.
-- [ ] `tools.authorize`. Spec in `tests/test_tools.py`.
-- [ ] `evals.judge.judge`, with the same rubric as `GUIDELINES.md`.
+- [x] `answer.answer`, including the tool-call loop.
+- [x] `tools.authorize`. Spec in `tests/test_tools.py`.
+- [x] `evals.judge.judge`, with the same rubric as `GUIDELINES.md`. The rubric is read from `GUIDELINES.md` at run time.
 - [ ] `evals.metrics.cohens_kappa`. Hand-label 50 judged rows into `data/human_labels.jsonl`, then run `python -m owasp_rag.evals agreement results/<run>.jsonl`.
-- [ ] Baseline `make eval-golden`: answer accuracy, refusal accuracy, p95 latency, cost per 1k queries.
+- [x] Baseline `make eval-golden`: answer accuracy, refusal accuracy, p95 latency, cost per 1k queries. Test split, n=107, answer model `qwen3.5-4b-8k`, judge `gpt-oss:120b` (`results/golden-20261108-001902.summary.json`).
 
 ## Week 3: attacks and defenses
 
@@ -64,4 +64,4 @@ Record each choice, the alternative you rejected, and the number that decided it
 
 | Run | Defenses | recall@5 | MRR | Answer acc. | Refusal acc. | Attack success | p95 latency | $/1k queries |
 |---|---|---|---|---|---|---|---|---|
-| | none | | | | | | | |
+| golden-20261108-001902 | none | 0.906 | 0.733 | 84.7% | 100% | | 16.8 s | $0 (local) |
