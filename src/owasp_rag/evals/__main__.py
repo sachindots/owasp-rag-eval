@@ -1,5 +1,6 @@
 import argparse
 import json
+import random
 import statistics
 import time
 from collections import defaultdict
@@ -184,6 +185,39 @@ def run_retrieval(split: str, limit: int | None) -> dict:
     return {"results": str(path), **summary}
 
 
+def run_label(results: Path, n: int) -> dict:
+    """Blind-label judged rows: the judge's verdict is hidden so it can't anchor yours."""
+    labels_path = DATA / "human_labels.jsonl"
+    done = {
+        lab.item_id
+        for lab in (load(labels_path, HumanLabel) if labels_path.exists() else [])
+        if lab.run == results.stem
+    }
+    items = {i.id: i for i in load(DATA / "golden.jsonl", GoldenItem)}
+    rows = [r for r in load(results, GoldenResult) if r.judge is not None]
+    random.Random(results.stem).shuffle(rows)
+    todo = [r for r in rows if r.item_id not in done][: max(n - len(done), 0)]
+    print(f"{len(done)} labelled for {results.stem}; {len(todo)} to go. Rubric: GUIDELINES.md")
+    added = 0
+    with labels_path.open("a", encoding="utf-8") as out:
+        for r in todo:
+            item = items[r.item_id]
+            print(f"\n[{r.item_id}] {item.question}\n\nREFERENCE\n{item.reference_answer}")
+            print(f"\nCANDIDATE\n{r.answer.text}\n")
+            choice = ""
+            while choice not in ("c", "i", "s", "q"):
+                choice = input("correct, incorrect, skip, quit [c/i/s/q]: ").strip().lower()
+            if choice == "q":
+                break
+            if choice == "s":
+                continue
+            label = HumanLabel(run=results.stem, item_id=r.item_id, correct=choice == "c")
+            out.write(label.model_dump_json() + "\n")
+            out.flush()
+            added += 1
+    return {"run": results.stem, "added": added, "total": len(done) + added}
+
+
 def run_agreement(results: Path) -> dict:
     labels_path = DATA / "human_labels.jsonl"
     if not labels_path.exists():
@@ -218,6 +252,9 @@ def main(argv: list[str] | None = None) -> None:
     ret = sub.add_parser("retrieval", help="retrieval-only ablation: dense, keyword, hybrid")
     ret.add_argument("--split", choices=("dev", "test"), default="test")
     ret.add_argument("--limit", type=int)
+    lab = sub.add_parser("label", help="blind-label judged rows for the agreement check")
+    lab.add_argument("results", type=Path, help="a results/golden-*.jsonl file")
+    lab.add_argument("--n", type=int, default=50, help="stop once this many rows are labelled")
     agree = sub.add_parser("agreement", help="Cohen's kappa between the judge and your labels")
     agree.add_argument("results", type=Path, help="a results/golden-*.jsonl file")
     args = parser.parse_args(argv)
@@ -226,6 +263,8 @@ def main(argv: list[str] | None = None) -> None:
         summary = run_golden(args.split, args.limit, args.defenses)
     elif args.suite == "attacks":
         summary = run_attacks(args.split, args.limit, args.defenses)
+    elif args.suite == "label":
+        summary = run_label(args.results, args.n)
     elif args.suite == "retrieval":
         summary = run_retrieval(args.split, args.limit)
     else:

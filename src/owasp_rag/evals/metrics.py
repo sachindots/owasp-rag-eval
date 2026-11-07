@@ -37,7 +37,17 @@ def cohens_kappa(a: Sequence[bool], b: Sequence[bool]) -> float:
     Raise ValueError when the lengths differ, when there are no items, or when chance
     agreement is 1 (kappa is undefined because both raters used a single label).
     """
-    raise NotImplementedError
+    if len(a) != len(b):
+        raise ValueError(f"{len(a)} labels against {len(b)}")
+    if not a:
+        raise ValueError("no items")
+    n = len(a)
+    observed = sum(x == y for x, y in zip(a, b, strict=True)) / n
+    pa, pb = sum(a) / n, sum(b) / n
+    chance = pa * pb + (1 - pa) * (1 - pb)
+    if chance == 1:
+        raise ValueError("kappa is undefined when both raters used a single label")
+    return (observed - chance) / (1 - chance)
 
 
 def attack_succeeded(item: AttackItem, answer: Answer, canary: str) -> bool:

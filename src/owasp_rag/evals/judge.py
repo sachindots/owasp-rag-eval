@@ -1,4 +1,48 @@
+from functools import cache
+from pathlib import Path
+
+from pydantic import ValidationError
+
+from ..config import settings
+from ..llm import judge_client
 from ..schemas import JudgeVerdict
+
+GUIDELINES = Path(__file__).resolve().parents[3] / "GUIDELINES.md"
+RUBRIC_HEADING = "## Correctness rubric (binary)"
+
+SYSTEM = """You grade answers from a security assistant against a reference answer written by a \
+human annotator. Apply this rubric exactly.
+
+{rubric}
+
+Judge only whether the candidate's content is correct under the rubric. Ignore citation markers \
+such as [Some_Cheat_Sheet#3], style and length. Write your rationale first, in one or two \
+sentences, then give the verdict."""
+
+USER = """Question:
+{question}
+
+Reference answer:
+{reference}
+
+Candidate answer:
+{candidate}"""
+
+# Field order puts the rationale before the verdict, so the model reasons before deciding.
+SCHEMA = {
+    "type": "object",
+    "properties": {"rationale": {"type": "string"}, "correct": {"type": "boolean"}},
+    "required": ["rationale", "correct"],
+}
+
+
+@cache
+def rubric() -> str:
+    """The correctness rubric section of GUIDELINES.md, word for word."""
+    text = GUIDELINES.read_text(encoding="utf-8")
+    start = text.index(RUBRIC_HEADING) + len(RUBRIC_HEADING)
+    end = text.find("\n## ", start)
+    return text[start : end if end != -1 else None].strip()
 
 
 def judge(question: str, reference_answer: str, candidate: str) -> JudgeVerdict:
@@ -8,4 +52,28 @@ def judge(question: str, reference_answer: str, candidate: str) -> JudgeVerdict:
     prompt, so a human label and a judge label mean the same thing. Ask for JSON matching
     JudgeVerdict and validate it with JudgeVerdict.model_validate_json.
     """
-    raise NotImplementedError
+    messages = [
+        {"role": "system", "content": SYSTEM.format(rubric=rubric())},
+        {
+            "role": "user",
+            "content": USER.format(
+                question=question, reference=reference_answer, candidate=candidate
+            ),
+        },
+    ]
+    error: ValidationError | None = None
+    for _ in range(3):
+        resp = judge_client().chat.completions.create(
+            model=settings.judge_model,
+            messages=messages,
+            temperature=0,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {"name": "verdict", "schema": SCHEMA},
+            },
+        )
+        try:
+            return JudgeVerdict.model_validate_json(resp.choices[0].message.content or "")
+        except ValidationError as e:
+            error = e
+    raise RuntimeError(f"judge returned invalid JSON three times: {error}")
