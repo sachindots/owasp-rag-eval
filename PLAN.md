@@ -6,11 +6,17 @@ Every stub raises `NotImplementedError`, and `uv run pytest` reports its spec te
 
 - [x] `chunking.split_markdown`. Tests in `tests/test_chunking.py`.
 - [x] `make db corpus ingest`. 3,298 chunks from 137 cheat sheets at corpus commit `757270a`, 1024-dim bge-m3 embeddings, about 2 minutes on an RTX 3060 Laptop GPU.
-- [ ] `retrieval.vector_search`, `keyword_search`, `rrf_merge`, `hybrid_search`. Spec in `tests/test_retrieval.py`.
+- [x] `retrieval.vector_search`, `keyword_search`, `rrf_merge`, `hybrid_search`. Spec in `tests/test_retrieval.py`. Keyword search is in-memory BM25 over the lexemes in `chunks.tsv`.
 - [x] `evals.metrics.first_hit_rank`, `recall_at_k`, `mrr`. Spec in `tests/test_metrics.py`.
 - [x] Write `GUIDELINES.md` before labelling anything.
-- [ ] Grow `data/golden.jsonl` to 150 items, about 30 of them unanswerable. `pytest` checks every quote against the corpus.
-- [ ] Ablation: recall@5 and MRR for dense only, keyword only, and hybrid.
+- [x] Grow `data/golden.jsonl` to 150 items, about 30 of them unanswerable. `pytest` checks every quote against the corpus. 154 items: 123 answerable, 31 unanswerable, 47 in `dev`. Frozen on 2026-11-07.
+- [x] Ablation: recall@5 and MRR for dense only, keyword only, and hybrid. Test split, 85 answerable questions (`results/retrieval-20261107-231525.json`):
+
+  | Retrieval | recall@5 | MRR |
+  |---|---|---|
+  | Dense (bge-m3) | 0.812 | 0.690 |
+  | Keyword (BM25) | 0.847 | 0.691 |
+  | Hybrid (RRF, k=60) | 0.906 | 0.733 |
 
 ## Week 2: answers and the judge
 
@@ -48,6 +54,8 @@ Record each choice, the alternative you rejected, and the number that decided it
 | 2026-11-07 | Judge on Gemini, a different model family from the answer model | Same-family judges favour their own outputs. |
 | 2026-11-07 | Golden and attack items carry a `dev`/`test` split | Prompts and thresholds are tuned on `dev`; reported numbers come from `test` only. |
 | 2026-11-07 | Keyword search ORs the question's lexemes instead of using `websearch_to_tsquery` | On dev (n=38), AND semantics returned no rows for 92% of questions and keyword recall@5 was 0.079 (`results/retrieval-20261107-230923.json`). ORed lexemes: 0% empty, recall@5 0.421 (`results/retrieval-20261107-230946.json`). |
+| 2026-11-07 | Keyword search is in-memory BM25, replacing `ts_rank_cd` | `ts_rank_cd` has no IDF, so common words outweigh rare ones. On dev, BM25 raised keyword recall@5 from 0.421 to 0.789 (`results/retrieval-20261107-231512.json`). |
+| 2026-11-07 | Keep hybrid retrieval, not dense only | On dev (n=38) dense scored 0.895 recall@5 against hybrid's 0.868, one question apart. Hybrid was kept because the golden questions avoid the sheets' wording by design, and real users often type exact terms. Decided before the test split was run; on test (n=85) hybrid scored 0.906 against dense's 0.812. |
 
 ## Results
 

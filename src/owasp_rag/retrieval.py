@@ -1,3 +1,5 @@
+import math
+from collections import Counter, defaultdict
 from collections.abc import Sequence
 
 import numpy as np
@@ -22,22 +24,62 @@ def vector_search(conn: psycopg.Connection, query_embedding: list[float], k: int
     return _chunks(rows)
 
 
-def keyword_search(conn: psycopg.Connection, query: str, k: int) -> list[Chunk]:
-    """Top k chunks by Postgres full-text rank, best first.
+class Bm25:
+    """Okapi BM25 over pre-tokenised documents: term -> count per document id."""
 
-    The question's lexemes are ORed, then ranked with ts_rank_cd against chunks.tsv. The
-    AND semantics of websearch_to_tsquery matched nothing for 92% of dev questions (PLAN.md,
-    decisions log). A question made only of stopwords has no lexemes and returns no rows.
-    This is not BM25: ts_rank_cd weighs term frequency and proximity, with no IDF.
+    def __init__(self, docs: dict[str, Counter[str]], k1: float = 1.2, b: float = 0.75):
+        self.k1, self.b = k1, b
+        self.length = {d: sum(tf.values()) for d, tf in docs.items()}
+        self.avg_length = sum(self.length.values()) / len(docs) if docs else 0.0
+        self.postings: dict[str, list[tuple[str, int]]] = defaultdict(list)
+        for d, tf in docs.items():
+            for term, n in tf.items():
+                self.postings[term].append((d, n))
+
+    def top(self, terms: Sequence[str], k: int) -> list[str]:
+        """Ids of the k best documents for the query terms, best first; ties break by id."""
+        n_docs = len(self.length)
+        scores: dict[str, float] = defaultdict(float)
+        for term in set(terms):
+            postings = self.postings.get(term, [])
+            idf = math.log(1 + (n_docs - len(postings) + 0.5) / (len(postings) + 0.5))
+            for d, n in postings:
+                norm = 1 - self.b + self.b * self.length[d] / self.avg_length
+                scores[d] += idf * n * (self.k1 + 1) / (n + self.k1 * norm)
+        return sorted(scores, key=lambda d: (-scores[d], d))[:k]
+
+
+# shortcut: the index is built once per process; restart the process after `make ingest`.
+_index: tuple[Bm25, dict[str, Chunk]] | None = None
+
+
+def _bm25_index(conn: psycopg.Connection) -> tuple[Bm25, dict[str, Chunk]]:
+    global _index
+    if _index is None:
+        chunks = {c.id: c for c in _chunks(conn.execute(f"SELECT {_COLUMNS} FROM chunks"))}
+        docs: dict[str, Counter[str]] = defaultdict(Counter)
+        # Reuse the lexemes Postgres already stored in chunks.tsv, so documents and queries
+        # share the 'english' stemmer and stopword list.
+        for cid, lexeme, n in conn.execute(
+            "SELECT id, t.lexeme, cardinality(t.positions) FROM chunks, unnest(tsv) t"
+        ):
+            docs[cid][lexeme] = n
+        _index = (Bm25(docs), chunks)
+    return _index
+
+
+def keyword_search(conn: psycopg.Connection, query: str, k: int) -> list[Chunk]:
+    """Top k chunks by BM25, best first.
+
+    In memory over the lexemes in chunks.tsv. Postgres's ts_rank_cd has no IDF and found
+    the evidence for 42% of dev questions against BM25's 79% (PLAN.md, decisions log).
+    A question made only of stopwords has no terms and returns no chunks.
     """
-    rows = conn.execute(
-        f"SELECT {_COLUMNS} FROM chunks,"
-        " to_tsquery('english', replace(plainto_tsquery('english', %(q)s)::text, ' & ', ' | '))"
-        " query WHERE numnode(query) > 0 AND tsv @@ query"
-        " ORDER BY ts_rank_cd(tsv, query) DESC, id LIMIT %(k)s",
-        {"q": query, "k": k},
-    ).fetchall()
-    return _chunks(rows)
+    index, chunks = _bm25_index(conn)
+    (terms,) = conn.execute(
+        "SELECT tsvector_to_array(to_tsvector('english', %s))", (query,)
+    ).fetchone()
+    return [chunks[cid] for cid in index.top(terms, k)]
 
 
 def rrf_merge(rankings: Sequence[Sequence[Chunk]], k: int = 60) -> list[Chunk]:
