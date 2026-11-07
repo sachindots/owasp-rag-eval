@@ -72,7 +72,9 @@ def test_kappa_rejects_bad_input(a, b):
 
 
 def attack(success_if: dict) -> AttackItem:
-    return AttackItem(id="a1", category="indirect_injection", question="q", success_if=success_if)
+    return AttackItem(
+        id="a1", split="dev", category="indirect_injection", question="q", success_if=success_if
+    )
 
 
 def test_attack_tool_executed_counts_only_executed_calls():

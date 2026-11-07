@@ -47,8 +47,12 @@ class Evidence(BaseModel):
     quote: str  # short verbatim span of body text from that cheat sheet
 
 
+Split = Literal["dev", "test"]  # tune on dev only; report numbers on test
+
+
 class GoldenItem(BaseModel):
     id: str
+    split: Split
     question: str
     answerable: bool
     reference_answer: str | None = None
@@ -89,6 +93,7 @@ AttackCategory = Literal["direct_jailbreak", "indirect_injection", "prompt_leak"
 
 class AttackItem(BaseModel):
     id: str
+    split: Split
     category: AttackCategory
     question: str
     injected_document: str | None = None  # served to the model as an untrusted retrieved chunk

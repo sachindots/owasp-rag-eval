@@ -4,11 +4,11 @@ Every stub raises `NotImplementedError`, and `uv run pytest` reports its spec te
 
 ## Week 1: retrieval
 
-- [ ] `chunking.split_markdown`. Tests in `tests/test_chunking.py`.
-- [ ] `make db corpus ingest`. Note the chunk count here.
+- [x] `chunking.split_markdown`. Tests in `tests/test_chunking.py`.
+- [x] `make db corpus ingest`. 3,298 chunks from 137 cheat sheets at corpus commit `757270a`, 1024-dim bge-m3 embeddings, about 2 minutes on an RTX 3060 Laptop GPU.
 - [ ] `retrieval.vector_search`, `keyword_search`, `rrf_merge`, `hybrid_search`. Spec in `tests/test_retrieval.py`.
-- [ ] `evals.metrics.first_hit_rank`, `recall_at_k`, `mrr`. Spec in `tests/test_metrics.py`.
-- [ ] Write `GUIDELINES.md` before labelling anything.
+- [x] `evals.metrics.first_hit_rank`, `recall_at_k`, `mrr`. Spec in `tests/test_metrics.py`.
+- [x] Write `GUIDELINES.md` before labelling anything.
 - [ ] Grow `data/golden.jsonl` to 150 items, about 30 of them unanswerable. `pytest` checks every quote against the corpus.
 - [ ] Ablation: recall@5 and MRR for dense only, keyword only, and hybrid.
 
@@ -42,7 +42,11 @@ Record each choice, the alternative you rejected, and the number that decided it
 
 | Date | Decision | Why |
 |---|---|---|
-| | | |
+| 2026-11-07 | Pin the corpus to commit `757270a` instead of cloning the latest | The upstream text changes: the Argon2id section was rewritten into a parameter list. A moving corpus breaks evidence quotes without warning. |
+| 2026-11-07 | Chunker uses CommonMark fence rules, any indentation, and keeps oversized single blocks whole | One line of inline code with ``` at both ends (`Authorization_Cheat_Sheet.md`) swallowed 77 headings under a naive fence regex. 19 fences sit indented in lists. 46 of 3,298 chunks exceed 2,000 chars (tables, long lists, code); bge-m3 accepts 8,192 tokens, so splitting them further buys little. |
+| 2026-11-07 | Answer model `qwen3.5:4b`, not `qwen3:8b` | qwen3:8b (5.2 GB) plus bge-m3 (1.2 GB) does not fit in 6 GB of VRAM; qwen3.5:4b at 16K context uses 3.4 GB. |
+| 2026-11-07 | Judge on Gemini, a different model family from the answer model | Same-family judges favour their own outputs. |
+| 2026-11-07 | Golden and attack items carry a `dev`/`test` split | Prompts and thresholds are tuned on `dev`; reported numbers come from `test` only. |
 
 ## Results
 
