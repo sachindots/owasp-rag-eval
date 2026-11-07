@@ -1,6 +1,10 @@
-.PHONY: setup db corpus ingest serve test lint eval-retrieval eval-golden eval-attacks
+.PHONY: setup models db corpus ingest serve test lint eval-retrieval eval-golden eval-attacks
 
 setup: ; uv sync
+models:
+	ollama pull bge-m3
+	ollama pull qwen3.5:4b
+	ollama create qwen3.5-4b-16k -f ollama/Modelfile
 db: ; docker compose up -d db
 # Pinned so evidence quotes in data/golden.jsonl keep matching. Bump deliberately and re-run the quote test.
 CORPUS_COMMIT = 757270a26306e5edda9957bb7f86cfcde03c30f9

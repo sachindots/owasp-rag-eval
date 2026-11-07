@@ -12,6 +12,11 @@ def chat_client() -> OpenAI:
 
 
 @cache
+def judge_client() -> OpenAI:
+    return OpenAI(base_url=settings.judge_base_url, api_key=settings.judge_api_key or "unused")
+
+
+@cache
 def embed_client() -> OpenAI:
     return OpenAI(base_url=settings.embed_base_url, api_key=settings.embed_api_key or "unused")
 

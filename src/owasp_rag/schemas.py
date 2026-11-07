@@ -31,11 +31,23 @@ class ToolCall(BaseModel):
     status: ToolStatus
 
 
+class RetrievalHit(BaseModel):
+    """Where one retrieved chunk ranked, and what the injection classifier made of it."""
+
+    id: str
+    dense_rank: int | None = None  # None: not in the dense list, or a planted chunk
+    keyword_rank: int | None = None
+    rrf_score: float | None = None
+    injection_score: float | None = None  # None when the classifier defense is off
+    dropped: bool = False  # withheld from the model by the classifier
+
+
 class Answer(BaseModel):
     text: str
     refused: bool
     citations: list[str]  # chunk ids the answer relies on
-    retrieved: list[Chunk]  # what the model saw, best first
+    retrieved: list[Chunk]  # what retrieval returned, best first, planted chunks last
+    retrieval: list[RetrievalHit] = []  # one per retrieved chunk, same order
     tool_calls: list[ToolCall] = []
     latency_ms: float
     prompt_tokens: int

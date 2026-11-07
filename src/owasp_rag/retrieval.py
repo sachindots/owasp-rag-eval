@@ -6,7 +6,7 @@ import numpy as np
 import psycopg
 
 from .llm import embed
-from .schemas import Chunk
+from .schemas import Chunk, RetrievalHit
 
 _COLUMNS = "id, doc, heading, text"
 
@@ -82,6 +82,14 @@ def keyword_search(conn: psycopg.Connection, query: str, k: int) -> list[Chunk]:
     return [chunks[cid] for cid in index.top(terms, k)]
 
 
+def _rrf_scores(rankings: Sequence[Sequence[Chunk]], k: int) -> dict[str, float]:
+    scores: dict[str, float] = {}
+    for ranking in rankings:
+        for rank, chunk in enumerate(ranking, start=1):
+            scores[chunk.id] = scores.get(chunk.id, 0.0) + 1 / (k + rank)
+    return scores
+
+
 def rrf_merge(rankings: Sequence[Sequence[Chunk]], k: int = 60) -> list[Chunk]:
     """Reciprocal rank fusion.
 
@@ -89,12 +97,8 @@ def rrf_merge(rankings: Sequence[Sequence[Chunk]], k: int = 60) -> list[Chunk]:
     Chunks are identified by id. Return each chunk once, highest score first. Ties keep the
     order in which the chunks first appear across the rankings.
     """
-    scores: dict[str, float] = {}
-    chunks: dict[str, Chunk] = {}
-    for ranking in rankings:
-        for rank, chunk in enumerate(ranking, start=1):
-            scores[chunk.id] = scores.get(chunk.id, 0.0) + 1 / (k + rank)
-            chunks.setdefault(chunk.id, chunk)
+    scores = _rrf_scores(rankings, k)
+    chunks = {c.id: c for ranking in reversed(rankings) for c in reversed(ranking)}
     # sorted() is stable and dicts keep insertion order, so ties keep first appearance.
     return [chunks[cid] for cid in sorted(scores, key=lambda cid: -scores[cid])]
 
@@ -102,6 +106,28 @@ def rrf_merge(rankings: Sequence[Sequence[Chunk]], k: int = 60) -> list[Chunk]:
 def hybrid_search(conn: psycopg.Connection, query: str, k: int) -> list[Chunk]:
     """Embed the query, run both searches with a deeper cut than k (4 * k is a fine start),
     merge them with rrf_merge, and return the top k."""
+    return [chunk for chunk, _ in traced_hybrid_search(conn, query, k)]
+
+
+def traced_hybrid_search(
+    conn: psycopg.Connection, query: str, k: int
+) -> list[tuple[Chunk, RetrievalHit]]:
+    """hybrid_search, with each chunk's dense rank, keyword rank and fused score."""
     depth = 4 * k
     dense = vector_search(conn, embed([query])[0], depth)
-    return rrf_merge([dense, keyword_search(conn, query, depth)])[:k]
+    keyword = keyword_search(conn, query, depth)
+    scores = _rrf_scores([dense, keyword], 60)
+    dense_rank = {c.id: n for n, c in enumerate(dense, start=1)}
+    keyword_rank = {c.id: n for n, c in enumerate(keyword, start=1)}
+    return [
+        (
+            chunk,
+            RetrievalHit(
+                id=chunk.id,
+                dense_rank=dense_rank.get(chunk.id),
+                keyword_rank=keyword_rank.get(chunk.id),
+                rrf_score=scores[chunk.id],
+            ),
+        )
+        for chunk in rrf_merge([dense, keyword])[:k]
+    ]

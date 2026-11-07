@@ -1,0 +1,3 @@
+FROM qwen3.5:4b
+# Ollama defaults to a 4K context, which silently truncates prompts with large chunks.
+PARAMETER num_ctx 16384

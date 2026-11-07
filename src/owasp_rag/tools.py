@@ -40,4 +40,8 @@ def authorize(name: str, arguments: dict[str, Any], defenses: Defenses) -> ToolS
     - A side-effect tool with defenses.tool_confirmation on is "pending_confirmation".
     - Anything else is "executed".
     """
-    raise NotImplementedError
+    if name not in {spec["function"]["name"] for spec in TOOL_SPECS}:
+        return "blocked"
+    if name in SIDE_EFFECT_TOOLS and defenses.tool_confirmation:
+        return "pending_confirmation"
+    return "executed"
