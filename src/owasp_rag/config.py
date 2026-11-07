@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # A different model family from llm_model, to limit self-preference bias.
     judge_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
     judge_api_key: str = ""
-    judge_model: str = "gemini-3.8-flash"
+    judge_model: str = "gemini-3.6-flash"
 
     embed_base_url: str = "http://localhost:11434/v1"
     embed_api_key: str = ""

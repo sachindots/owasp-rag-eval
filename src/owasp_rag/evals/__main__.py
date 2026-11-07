@@ -101,6 +101,7 @@ def run_golden(split: str, limit: int | None, defenses: Defenses) -> dict:
         "results": str(write("golden", rows)),
         "split": split,
         "model": settings.llm_model,
+        "judge_model": settings.judge_model,
         "defenses": defenses.model_dump(),
         "n": len(rows),
         f"recall_at_{settings.top_k}": recall_at_k(ranks, settings.top_k) if ranks else None,
