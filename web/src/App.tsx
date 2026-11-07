@@ -25,6 +25,10 @@ export default function App() {
   const Page = PAGES[route][1]
   return (
     <>
+      <div className="banner" role="note">
+        Unofficial <span aria-hidden="true">//</span> Study project <span aria-hidden="true">//</span>{' '}
+        Source: OWASP Cheat Sheet Series
+      </div>
       <header className="topbar">
         <div className="topbar-inner">
           <a className="wordmark" href="#/ask">

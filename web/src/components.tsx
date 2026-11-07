@@ -28,6 +28,10 @@ export function DefenseToggles({
 
 type Tone = 'ok' | 'danger' | 'warn' | 'neutral'
 
+export function Stamp({ tone, children }: { tone: 'ok' | 'danger' | 'neutral'; children: ReactNode }) {
+  return <span className={`stamp stamp-${tone}`}>{children}</span>
+}
+
 export function Pill({ tone = 'neutral', children }: { tone?: Tone; children: ReactNode }) {
   return <span className={`pill pill-${tone}`}>{children}</span>
 }
@@ -81,7 +85,7 @@ export function SourceCard({ n, chunk, active }: { n: number; chunk: Chunk; acti
   return (
     <article id={`src-${n}`} className={`source${active ? ' is-active' : ''}`}>
       <header>
-        <span className="source-n">{n}</span>
+        <span className="source-n">EX.{String(n).padStart(2, '0')}</span>
         <div className="source-title">
           <a href={sourceUrl(chunk.doc)} target="_blank" rel="noreferrer">
             {docTitle(chunk.doc)}
@@ -116,7 +120,7 @@ export function RetrievalDrawer({ answer, onClose }: { answer: Answer; onClose: 
       >
         <header className="drawer-head">
           <div>
-            <h2 id="drawer-title">Retrieval</h2>
+            <h2 id="drawer-title">Retrieval log</h2>
             <p className="muted">
               Dense and keyword results fused with reciprocal rank fusion (k = 60). Lower rank is better.
             </p>
@@ -143,10 +147,10 @@ export function RetrievalDrawer({ answer, onClose }: { answer: Answer; onClose: 
                 </span>
                 <span className="hit-chunk" role="cell">
                   <span className="hit-title">
-                    {docTitle(c.doc)}
+                    <span className={h?.dropped ? 'redact' : undefined}>{docTitle(c.doc)}</span>
                     {cited && <Pill>cited</Pill>}
                     {!c.trusted && <Pill tone="warn">untrusted</Pill>}
-                    {h?.dropped && <Pill tone="danger">dropped · {h.injection_score?.toFixed(2)}</Pill>}
+                    {h?.dropped && <Pill tone="danger">redacted · {h.injection_score?.toFixed(2)}</Pill>}
                   </span>
                   <span className="source-path">{headingTail(c.heading) || '—'}</span>
                   <code className="source-id">{c.id}</code>

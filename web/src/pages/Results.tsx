@@ -15,7 +15,7 @@ export function Results() {
   return (
     <div className="page">
       <section className="ask-head">
-        <h1>Evaluation runs</h1>
+        <h1>Evaluation register</h1>
         <p className="muted">
           Every number here is read from a results file a real run produced, on the held-out test
           split.

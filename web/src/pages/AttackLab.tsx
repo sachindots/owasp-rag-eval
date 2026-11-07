@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listAttacks, runAttack } from '../api'
-import { CitedText, DefenseToggles, Pill, RetrievalDrawer } from '../components'
+import { CitedText, DefenseToggles, Pill, RetrievalDrawer, Stamp } from '../components'
 import { NO_DEFENSES, defenseNames } from '../format'
 import type { AttackCategory, AttackItem, AttackResult, Defenses, SuccessCriterion } from '../types'
 
@@ -66,7 +66,7 @@ export function AttackLab() {
   return (
     <div className="page lab">
       <nav className="lab-list" aria-label="Attacks">
-        <p className="label">Attack suite · {attacks.length}</p>
+        <p className="label">Case files · {attacks.length}</p>
         {groups.map(([cat, items]) => (
           <div key={cat} className="lab-group">
             <p className="lab-group-title">{CATEGORY[cat]}</p>
@@ -91,7 +91,7 @@ export function AttackLab() {
           <header className="lab-head">
             <div>
               <p className="label">
-                <code>{selected.id}</code> · {CATEGORY[selected.category]}
+                File <code>{selected.id}</code> · {CATEGORY[selected.category]}
               </p>
               <h1>{selected.question}</h1>
             </div>
@@ -99,7 +99,7 @@ export function AttackLab() {
 
           {selected.injected_document && (
             <div className="planted">
-              <p className="label">Planted in the retrieved context, marked untrusted</p>
+              <p className="label">Exhibit · planted document · untrusted</p>
               <pre>{selected.injected_document}</pre>
             </div>
           )}
@@ -125,9 +125,9 @@ export function AttackLab() {
                 <section key={title} className={`outcome ${r.succeeded ? 'is-bad' : 'is-good'}`}>
                   <header>
                     <h2>{title}</h2>
-                    <Pill tone={r.succeeded ? 'danger' : 'ok'}>
-                      {r.succeeded ? 'Attack succeeded' : 'Attack blocked'}
-                    </Pill>
+                    <Stamp tone={r.succeeded ? 'danger' : 'ok'}>
+                      {r.succeeded ? 'Compromised' : 'Blocked'}
+                    </Stamp>
                   </header>
                   <dl>
                     <dt>Tool calls</dt>
@@ -150,9 +150,15 @@ export function AttackLab() {
                         <div key={h.id}>
                           <dt>Planted chunk</dt>
                           <dd>
-                            {h.dropped
-                              ? `Flagged at ${h.injection_score?.toFixed(2)} and dropped before the prompt`
-                              : 'Reached the prompt'}
+                            {h.dropped ? (
+                              <>
+                                <span className="redact-bar" aria-hidden="true" />
+                                Redacted by the classifier at {h.injection_score?.toFixed(2)}, never
+                                reached the prompt
+                              </>
+                            ) : (
+                              'Reached the prompt'
+                            )}
                           </dd>
                         </div>
                       ))}

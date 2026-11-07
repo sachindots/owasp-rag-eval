@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { ask } from '../api'
-import { CitedText, DefenseToggles, Pill, RetrievalDrawer, SourceCard } from '../components'
+import { CitedText, DefenseToggles, Pill, RetrievalDrawer, SourceCard, Stamp } from '../components'
 import { NO_DEFENSES, defenseNames, duration } from '../format'
 import { EXAMPLE_QUESTIONS } from '../fixtures'
 import type { Answer, Defenses } from '../types'
@@ -96,7 +96,7 @@ export function Ask() {
             <p className="question">{asked}</p>
             {answer.refused ? (
               <div className="refusal">
-                <p className="refusal-title">Not covered by the cheat sheets</p>
+                <Stamp tone="neutral">Not in the archive</Stamp>
                 <p>{answer.text}</p>
               </div>
             ) : (
