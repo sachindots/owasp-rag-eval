@@ -66,4 +66,5 @@ Record each choice, the alternative you rejected, and the number that decided it
 
 | Run | Defenses | recall@5 | MRR | Answer acc. | Refusal acc. | Attack success | p95 latency | $/1k queries |
 |---|---|---|---|---|---|---|---|---|
-| golden-20261108-001902 | none | 0.906 | 0.733 | 84.7% | 100% | | 16.8 s | $0 (local) |
+| golden-20261108-001902 (qwen3.5:4b) | none | 0.906 | 0.733 | 84.7% | 100% | | 16.8 s | $0 (local) |
+| golden-20261108-094833 (qwen3:4b-instruct-2507) | none | 0.906 | 0.733 | 77.6% ±8.9 | 95.5% ±8.7 | | 10.8 s | $0 (local) |
