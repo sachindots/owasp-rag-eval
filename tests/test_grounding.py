@@ -30,9 +30,15 @@ def test_citation_validity_counts_markers_to_unshown_chunks():
     assert grounding.citation_validity(answer("No markers.", ["P#1"])) is None
 
 
-def test_sentence_support_takes_best_cited_passage(monkeypatch):
-    monkeypatch.setattr(
-        grounding, "support_probability", lambda passage, claim: 0.9 if "P#2" in passage else 0.2
-    )
-    a = answer("One [P#1] [P#2]. Two [P#1]. Three.", ["P#1", "P#2"])
-    assert grounding.sentence_support(a) == [0.9, 0.2, 0.0]
+def test_sentence_support_uses_cited_passages_else_all_shown(monkeypatch):
+    seen = []
+
+    def fake(passage, claim):
+        seen.append((claim, passage.splitlines()[0]))
+        return 0.9 if "text of P#2" in passage else 0.2
+
+    monkeypatch.setattr(grounding, "support_probability", fake)
+    a = answer("One [P#1] [P#2]. Two [P#1]. Three.", ["P#1", "P#2", "P#3"], frozenset({"P#3"}))
+    assert grounding.sentence_support(a) == [0.9, 0.2, 0.9]
+    assert ("Three.", "Source: OWASP d") in seen
+    assert not any("P#3" in passage for _, passage in seen)

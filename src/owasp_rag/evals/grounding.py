@@ -10,7 +10,7 @@ windows and the best window counts. Needs the optional `ml` dependency group.
 import re
 from functools import cache
 
-from ..schemas import Answer
+from ..schemas import Answer, Chunk
 
 MODEL = "lytang/MiniCheck-Flan-T5-Large"
 WINDOW_WORDS = 400  # keeps "predict: " + window + claim under the model's 2048-token input
@@ -70,12 +70,23 @@ def support_probability(passage: str, claim: str) -> float:
     return torch.softmax(logits[:, [3, 209]], dim=-1)[:, 1].max().item()
 
 
+def _with_source(chunk: Chunk) -> str:
+    # Without its provenance a passage can't support "OWASP recommends ..." claims.
+    source = f"OWASP {chunk.heading or chunk.doc}" if chunk.trusted else "an untrusted document"
+    return f"Source: {source}\n\n{chunk.text}"
+
+
 def sentence_support(answer: Answer) -> list[float]:
-    """Support probability per answer sentence, checked against the passages it cites.
-    A sentence that cites nothing the model saw scores 0."""
-    chunks = {c.id: c for c in answer.retrieved}
+    """Support probability per answer sentence. A sentence is checked against the passages it
+    cites, or against every passage the model was shown when it cites none (as RAGAS
+    faithfulness does). Citation coverage is reported separately."""
+    shown = {c.id for c, h in zip(answer.retrieved, answer.retrieval, strict=False) if h.dropped}
+    shown = [c for c in answer.retrieved if c.id not in shown]
+    by_id = {c.id: c for c in shown}
     scores = []
     for claim, ids in cited_sentences(answer.text):
-        passages = [chunks[i].text for i in ids if i in chunks]
-        scores.append(max((support_probability(p, claim) for p in passages), default=0.0))
+        passages = [by_id[i] for i in ids if i in by_id] or shown
+        scores.append(
+            max((support_probability(_with_source(c), claim) for c in passages), default=0.0)
+        )
     return scores

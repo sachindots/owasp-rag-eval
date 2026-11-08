@@ -251,11 +251,12 @@ def run_label(results: Path, n: int) -> dict:
 def run_grounding(results: Path) -> dict:
     """MiniCheck support for every sentence of every answered row of a golden results file.
     A separate step so evals stay fast and runs made earlier can be scored too."""
-    from .grounding import MODEL, sentence_support
+    from .grounding import MODEL, cited_sentences, sentence_support
 
     rows = [r for r in load(results, GoldenResult) if not r.refused and not r.answer.refused]
     support = {r.item_id: sentence_support(r.answer) for r in rows}
     supported = [p > 0.5 for scores in support.values() for p in scores]
+    cited = [bool(ids) for r in rows for _, ids in cited_sentences(r.answer.text)]
     summary = {
         "run": results.stem,
         "model": MODEL,
@@ -265,6 +266,8 @@ def run_grounding(results: Path) -> dict:
         "groundedness": mean(supported),
         "groundedness_ci95": ci95(supported),
         "fully_grounded_answers": mean([all(p > 0.5 for p in s) for s in support.values() if s]),
+        # Share of answer sentences that carry at least one [chunk_id] citation.
+        "citation_coverage": mean(cited),
         "support": support,
     }
     path = results.with_name(f"{results.stem}.grounding.json")
