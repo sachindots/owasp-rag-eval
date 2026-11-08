@@ -124,6 +124,9 @@ class GoldenResult(BaseModel):
     hit_rank: int | None  # 1-based rank of the first evidence hit; None if missed or unanswerable
     judge: JudgeVerdict | None  # None when no judge ran (refusals, unanswerable items)
     correct: bool
+    # The answer's refusal flag, widened by the eval's refusal check to catch free-worded
+    # refusals. None in runs made before the check existed.
+    refused: bool | None = None
 
 
 class AttackResult(BaseModel):

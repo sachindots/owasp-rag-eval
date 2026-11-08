@@ -31,6 +31,14 @@ def mrr(ranks: Sequence[int | None]) -> float:
     return sum(1 / r for r in ranks if r is not None) / len(ranks)
 
 
+def ci95(flags: Sequence[bool]) -> float | None:
+    """Half-width of the normal-approximation 95% interval for a rate: 1.96 * sqrt(p(1-p)/n)."""
+    if not flags:
+        return None
+    p = sum(flags) / len(flags)
+    return 1.96 * (p * (1 - p) / len(flags)) ** 0.5
+
+
 def cohens_kappa(a: Sequence[bool], b: Sequence[bool]) -> float:
     """Cohen's kappa between two raters' binary labels on the same items.
 

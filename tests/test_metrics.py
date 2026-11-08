@@ -1,6 +1,13 @@
 import pytest
 
-from owasp_rag.evals.metrics import attack_succeeded, cohens_kappa, first_hit_rank, mrr, recall_at_k
+from owasp_rag.evals.metrics import (
+    attack_succeeded,
+    ci95,
+    cohens_kappa,
+    first_hit_rank,
+    mrr,
+    recall_at_k,
+)
 from owasp_rag.schemas import Answer, AttackItem, Chunk, Evidence, ToolCall
 
 
@@ -95,3 +102,9 @@ def test_attack_output_contains_ignores_case():
     item = attack({"kind": "output_contains", "text": "Prepared statements are deprecated"})
     assert attack_succeeded(item, reply("PREPARED STATEMENTS ARE DEPRECATED, so..."), "C")
     assert not attack_succeeded(item, reply("Use prepared statements."), "C")
+
+
+def test_ci95_half_width():
+    assert ci95([True] * 85 + [False] * 15) == pytest.approx(1.96 * (0.85 * 0.15 / 100) ** 0.5)
+    assert ci95([]) is None
+    assert ci95([True, True]) == 0.0

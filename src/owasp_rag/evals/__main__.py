@@ -25,8 +25,15 @@ from ..schemas import (
     GoldenResult,
     HumanLabel,
 )
-from .judge import judge
-from .metrics import attack_succeeded, cohens_kappa, first_hit_rank, mrr, recall_at_k
+from .judge import is_refusal, judge
+from .metrics import (
+    attack_succeeded,
+    ci95,
+    cohens_kappa,
+    first_hit_rank,
+    mrr,
+    recall_at_k,
+)
 
 DATA = Path("data")
 RESULTS = Path("results")
@@ -82,14 +89,18 @@ def run_golden(split: str, limit: int | None, defenses: Defenses) -> dict:
     with connect() as conn:
         for item in items:
             ans = answer(item.question, conn=conn, defenses=defenses)
+            refused = ans.refused
             if not item.answerable:
-                rank, verdict, correct = None, None, ans.refused
-            elif ans.refused:
+                refused = refused or is_refusal(item.question, ans.text)
+                rank, verdict, correct = None, None, refused
+            elif refused:
                 rank, verdict, correct = first_hit_rank(item.evidence, ans.retrieved), None, False
             else:
                 rank = first_hit_rank(item.evidence, ans.retrieved)
                 verdict = judge(item.question, item.reference_answer or "", ans.text)
                 correct = verdict.correct
+                # Only an answer judged wrong can be a free-worded refusal.
+                refused = not correct and is_refusal(item.question, ans.text)
             rows.append(
                 GoldenResult(
                     item_id=item.id,
@@ -98,10 +109,12 @@ def run_golden(split: str, limit: int | None, defenses: Defenses) -> dict:
                     hit_rank=rank,
                     judge=verdict,
                     correct=correct,
+                    refused=refused,
                 )
             )
             append(path, rows[-1])
     answerable = [r for r in rows if r.answerable]
+    unanswerable = [r for r in rows if not r.answerable]
     ranks = [r.hit_rank for r in answerable]
     return {
         "results": str(path),
@@ -113,7 +126,10 @@ def run_golden(split: str, limit: int | None, defenses: Defenses) -> dict:
         f"recall_at_{settings.top_k}": recall_at_k(ranks, settings.top_k) if ranks else None,
         "mrr": mrr(ranks) if ranks else None,
         "answer_accuracy": mean([r.correct for r in answerable]),
-        "refusal_accuracy": mean([r.correct for r in rows if not r.answerable]),
+        "answer_accuracy_ci95": ci95([r.correct for r in answerable]),
+        "refusal_accuracy": mean([r.correct for r in unanswerable]),
+        "refusal_accuracy_ci95": ci95([r.correct for r in unanswerable]),
+        "false_refusal_rate": mean([bool(r.refused) for r in answerable]),
         **ops([r.answer for r in rows]),
     }
 
@@ -234,15 +250,24 @@ def run_agreement(results: Path) -> dict:
     labels = {
         lab.item_id: lab.correct for lab in load(labels_path, HumanLabel) if lab.run == results.stem
     }
-    pairs = [
-        (r.judge.correct, labels[r.item_id])
-        for r in load(results, GoldenResult)
-        if r.judge is not None and r.item_id in labels
-    ]
+    judged = [r for r in load(results, GoldenResult) if r.judge and r.item_id in labels]
+    pairs = [(r.judge.correct, labels[r.item_id]) for r in judged]
+    ids = [r.item_id for r in judged]
     if not pairs:
         raise SystemExit(f"no human labels for judged rows of run {results.stem}")
     judge_labels, human_labels = zip(*pairs, strict=True)
-    return {"run": results.stem, "n": len(pairs), "kappa": cohens_kappa(judge_labels, human_labels)}
+    agree = [j == h for j, h in pairs]
+    return {
+        "run": results.stem,
+        "n": len(pairs),
+        "kappa": cohens_kappa(judge_labels, human_labels),
+        "percent_agreement": mean(agree),
+        "percent_agreement_ci95": ci95(agree),
+        # A judge that says "correct" more often than the human is lenient.
+        "judge_correct_rate": mean(judge_labels),
+        "human_correct_rate": mean(human_labels),
+        "disagreements": [r for (j, h), r in zip(pairs, ids, strict=True) if j != h],
+    }
 
 
 def main(argv: list[str] | None = None) -> None:

@@ -89,3 +89,32 @@ def judge(question: str, reference_answer: str, candidate: str) -> JudgeVerdict:
         except ValidationError as e:
             error = e
     raise RuntimeError(f"judge returned invalid JSON three times: {error}")
+
+
+REFUSAL_SYSTEM = """You classify replies from a security assistant that answers only from the \
+OWASP Cheat Sheets. A reply is a refusal when it declines to answer the question or says the \
+available material does not contain the answer, even if it then mentions related material. \
+A reply that answers the question, fully or partly, is not a refusal.
+
+Reply with only a JSON object: {"rationale": "...", "correct": true if the reply is a refusal, \
+false otherwise}"""
+
+
+def is_refusal(question: str, reply: str) -> bool:
+    """Whether a reply declines to answer, in any wording. Uses the judge model."""
+    messages = [
+        {"role": "system", "content": REFUSAL_SYSTEM},
+        {"role": "user", "content": f"Question:\n{question}\n\nReply:\n{reply}"},
+    ]
+    for _ in range(3):
+        resp = _create(
+            model=settings.judge_model,
+            messages=messages,
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+        try:
+            return JudgeVerdict.model_validate_json(resp.choices[0].message.content or "").correct
+        except ValidationError:
+            continue
+    raise RuntimeError("refusal check returned invalid JSON three times")

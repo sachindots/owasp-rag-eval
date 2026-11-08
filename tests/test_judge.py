@@ -48,3 +48,9 @@ def test_judge_gives_up_after_three_bad_replies(replies):
     replies("x", "y", "z")
     with pytest.raises(RuntimeError):
         judge_mod.judge("q", "ref", "cand")
+
+
+def test_refusal_check_reads_the_verdict(replies):
+    sent = replies('{"rationale": "says the passages lack it", "correct": true}')
+    assert judge_mod.is_refusal("q", "The passages do not specify this.")
+    assert "refusal" in sent[0]["messages"][0]["content"]
