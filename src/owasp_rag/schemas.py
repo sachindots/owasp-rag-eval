@@ -127,6 +127,7 @@ class GoldenResult(BaseModel):
     # The answer's refusal flag, widened by the eval's refusal check to catch free-worded
     # refusals. None in runs made before the check existed.
     refused: bool | None = None
+    citation_validity: float | None = None  # share of [chunk_id] markers naming shown chunks
 
 
 class AttackResult(BaseModel):

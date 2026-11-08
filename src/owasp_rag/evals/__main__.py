@@ -25,6 +25,7 @@ from ..schemas import (
     GoldenResult,
     HumanLabel,
 )
+from .grounding import citation_validity
 from .judge import is_refusal, judge
 from .metrics import (
     attack_succeeded,
@@ -110,6 +111,7 @@ def run_golden(split: str, limit: int | None, defenses: Defenses) -> dict:
                     judge=verdict,
                     correct=correct,
                     refused=refused,
+                    citation_validity=None if refused else citation_validity(ans),
                 )
             )
             append(path, rows[-1])
@@ -130,6 +132,9 @@ def run_golden(split: str, limit: int | None, defenses: Defenses) -> dict:
         "refusal_accuracy": mean([r.correct for r in unanswerable]),
         "refusal_accuracy_ci95": ci95([r.correct for r in unanswerable]),
         "false_refusal_rate": mean([bool(r.refused) for r in answerable]),
+        "citation_validity": mean(
+            [r.citation_validity for r in rows if r.citation_validity is not None]
+        ),
         **ops([r.answer for r in rows]),
     }
 
@@ -243,6 +248,30 @@ def run_label(results: Path, n: int) -> dict:
     return {"run": results.stem, "added": added, "total": len(done) + added}
 
 
+def run_grounding(results: Path) -> dict:
+    """MiniCheck support for every sentence of every answered row of a golden results file.
+    A separate step so evals stay fast and runs made earlier can be scored too."""
+    from .grounding import MODEL, sentence_support
+
+    rows = [r for r in load(results, GoldenResult) if not r.refused and not r.answer.refused]
+    support = {r.item_id: sentence_support(r.answer) for r in rows}
+    supported = [p > 0.5 for scores in support.values() for p in scores]
+    summary = {
+        "run": results.stem,
+        "model": MODEL,
+        "answers": len(rows),
+        "sentences": len(supported),
+        # Share of answer sentences supported by the passages they cite.
+        "groundedness": mean(supported),
+        "groundedness_ci95": ci95(supported),
+        "fully_grounded_answers": mean([all(p > 0.5 for p in s) for s in support.values() if s]),
+        "support": support,
+    }
+    path = results.with_name(f"{results.stem}.grounding.json")
+    path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    return {"results": str(path), **{k: v for k, v in summary.items() if k != "support"}}
+
+
 def run_agreement(results: Path) -> dict:
     labels_path = DATA / "human_labels.jsonl"
     if not labels_path.exists():
@@ -286,6 +315,8 @@ def main(argv: list[str] | None = None) -> None:
     ret = sub.add_parser("retrieval", help="retrieval-only ablation: dense, keyword, hybrid")
     ret.add_argument("--split", choices=("dev", "test"), default="test")
     ret.add_argument("--limit", type=int)
+    gr = sub.add_parser("grounding", help="MiniCheck groundedness of a golden results file")
+    gr.add_argument("results", type=Path, help="a results/golden-*.jsonl file")
     lab = sub.add_parser("label", help="blind-label judged rows for the agreement check")
     lab.add_argument("results", type=Path, help="a results/golden-*.jsonl file")
     lab.add_argument("--n", type=int, default=50, help="stop once this many rows are labelled")
@@ -297,6 +328,8 @@ def main(argv: list[str] | None = None) -> None:
         summary = run_golden(args.split, args.limit, args.defenses)
     elif args.suite == "attacks":
         summary = run_attacks(args.split, args.limit, args.defenses)
+    elif args.suite == "grounding":
+        summary = run_grounding(args.results)
     elif args.suite == "label":
         summary = run_label(args.results, args.n)
     elif args.suite == "retrieval":

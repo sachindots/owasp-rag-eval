@@ -1,4 +1,4 @@
-.PHONY: setup models db corpus ingest serve test lint eval-retrieval eval-golden eval-attacks
+.PHONY: setup models db corpus ingest serve test lint eval-retrieval eval-golden eval-grounding eval-attacks
 
 setup: ; uv sync
 models:
@@ -18,4 +18,6 @@ test: ; uv run pytest
 lint: ; uv run ruff check . && uv run ruff format --check .
 eval-retrieval: ; uv run python -m owasp_rag.evals retrieval
 eval-golden: ; uv run python -m owasp_rag.evals golden
-eval-attacks: ; uv run python -m owasp_rag.evals attacks
+# Usage: make eval-grounding RUN=results/golden-<stamp>.jsonl
+eval-grounding: ; uv run --group ml python -m owasp_rag.evals grounding $(RUN)
+eval-attacks: ; uv run --group ml python -m owasp_rag.evals attacks

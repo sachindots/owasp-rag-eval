@@ -16,6 +16,17 @@ dependencies = [
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.6", "httpx>=0.27"]
+# Local classifiers (MiniCheck groundedness, Prompt Guard): `uv sync --group ml`. CPU builds,
+# because the GPU is busy with the answer model during evals.
+ml = ["torch>=2.5", "transformers>=4.46", "sentencepiece>=0.2"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
