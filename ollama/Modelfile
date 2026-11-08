@@ -1,4 +1,5 @@
-FROM qwen3.5:4b
+FROM qwen3:4b-instruct-2507-q4_K_M
 # Ollama defaults to a 4K context, which silently truncates prompts with large chunks.
-# 8K keeps qwen3.5:4b fully on a 6 GB GPU next to bge-m3; 16K spilled 16% of it to the CPU.
+# 8K keeps the model fully on a 6 GB GPU next to bge-m3. This model does not think, so no
+# reasoning_effort is needed.
 PARAMETER num_ctx 8192

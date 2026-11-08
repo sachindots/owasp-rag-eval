@@ -6,7 +6,7 @@ A RAG assistant over the [OWASP Cheat Sheet Series](https://github.com/OWASP/Che
 
 ## Run it locally
 
-Needs Docker, [uv](https://docs.astral.sh/uv/) and [Ollama](https://ollama.com) (`make models` pulls bge-m3 and qwen3.5:4b).
+Needs Docker, [uv](https://docs.astral.sh/uv/) and [Ollama](https://ollama.com) (`make models` pulls bge-m3 and qwen3:4b-instruct-2507).
 
 ```bash
 cp .env.example .env

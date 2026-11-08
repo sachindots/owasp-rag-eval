@@ -3,8 +3,8 @@
 setup: ; uv sync
 models:
 	ollama pull bge-m3
-	ollama pull qwen3.5:4b
-	ollama create qwen3.5-4b-8k -f ollama/Modelfile
+	ollama pull qwen3:4b-instruct-2507-q4_K_M
+	ollama create qwen3-4b-instruct-8k -f ollama/Modelfile
 db: ; docker compose up -d db
 # Pinned so evidence quotes in data/golden.jsonl keep matching. Bump deliberately and re-run the quote test.
 CORPUS_COMMIT = 757270a26306e5edda9957bb7f86cfcde03c30f9
